@@ -9,12 +9,16 @@ from pathlib import Path
 
 from jev_client.client import JevAnswer, JevClient
 from worlds.generic import GenericWorld
+from worlds.hex_minesweeper import HexMinesweeperWorld
 from worlds.minesweeper import MinesweeperWorld
 
 
 def build_world(args: argparse.Namespace):
     if args.world == "generic":
         return GenericWorld(spec_path=args.spec)
+    if args.world == "hex":
+        preset = args.preset if str(args.preset).startswith("hex") else "hex-small"
+        return HexMinesweeperWorld(preset=preset, style=args.style, safe_th=args.safe, mine_th=args.mine)
     return MinesweeperWorld(preset=args.preset, style=args.style, safe_th=args.safe, mine_th=args.mine)
 
 
@@ -48,12 +52,11 @@ def run_game(world, client: JevClient, seed: int, mode: str, max_moves: int) -> 
             }
             if mode == "hybrid" and hasattr(world, "_local_probs"):
                 local = world._local_probs()
-                confident = False
-                for ans in answers.values():
-                    p = ans.noul if ans.noul is not None else 0.5
-                    if p <= world.safe_th or p >= world.mine_th:
-                        confident = True
-                        break
+                confident = any(
+                    (ans.noul if ans.noul is not None else 0.5) <= world.safe_th
+                    or (ans.noul if ans.noul is not None else 0.5) >= world.mine_th
+                    for ans in answers.values()
+                )
                 if not confident:
                     answers = {
                         name: JevAnswer(type="noul", raw={}, noul=local.get(name[len("mine_"):], 0.5))
@@ -88,7 +91,7 @@ def run_game(world, client: JevClient, seed: int, mode: str, max_moves: int) -> 
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Jev world harness")
-    p.add_argument("--world", choices=["minesweeper", "generic"], default="minesweeper")
+    p.add_argument("--world", choices=["minesweeper", "hex", "generic"], default="minesweeper")
     p.add_argument("--mode", choices=["mock", "jev", "hybrid", "solver"], default="mock")
     p.add_argument("--preset", default="beginner")
     p.add_argument("--style", choices=["raw", "digested"], default="digested")
@@ -96,7 +99,7 @@ def main() -> None:
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--safe", type=float, default=0.07)
     p.add_argument("--mine", type=float, default=0.85)
-    p.add_argument("--max-moves", type=int, default=120)
+    p.add_argument("--max-moves", type=int, default=200)
     p.add_argument("--spec", default=None)
     p.add_argument("--out", default="runs/latest.jsonl")
     args = p.parse_args()
