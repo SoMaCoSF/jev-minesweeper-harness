@@ -1,0 +1,37 @@
+{
+  "title": "ticket-triage",
+  "state": {
+    "ticket": "Payment webhook keeps 500ing after the Vertex escrow cutover. Customer cannot withdraw. They mention a UUID that looks like a GYST v8 id.",
+    "account_tier": "production",
+    "open_incidents": 1
+  },
+  "questions": {
+    "needs_human": {
+      "type": "noul",
+      "instructions": "Should a human be pulled in immediately?"
+    },
+    "route": {
+      "type": "choice",
+      "instructions": "Which queue should own this ticket?",
+      "criteria": {
+        "payments": "escrow, withdraw, webhook, invoice",
+        "identity": "UUID, GYST, auth, proof of human",
+        "infra": "deploy, latency, kubernetes, DNS"
+      }
+    },
+    "severity": {
+      "type": "score",
+      "instructions": "How severe is production impact?",
+      "criteria": [
+        "cosmetic",
+        "degraded but working",
+        "core flow broken",
+        "funds or safety at risk"
+      ]
+    }
+  },
+  "expected": {
+    "route": "payments",
+    "needs_human": true
+  }
+}
