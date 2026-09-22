@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>YIELD — hex resource</title>
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#050a14;color:#cdd6e4;font:12px/1.4 system-ui,sans-serif;overflow:hidden;touch-action:none}
+#bg{position:fixed;inset:0}
+.ui{position:relative;z-index:2;height:100%;display:grid;grid-template-rows:auto 1fr auto}
+header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#0b1220cc}
+h1{font-size:12px;letter-spacing:.4em;font-weight:500}
+h1 small{display:block;color:#7a8496;letter-spacing:.2em;font-size:9px;margin-top:2px}
+.sliders{margin-left:auto;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+label{display:flex;align-items:center;gap:6px;color:#8b95a8;letter-spacing:.12em;text-transform:uppercase;font-size:10px}
+input[type=range]{width:90px;accent-color:#34d399}
+#view{min-height:0;display:grid;place-items:center;perspective:1100px;cursor:grab}
+#view.drag{cursor:grabbing}
+#board{transform-style:preserve-3d;will-change:transform}
+.dock{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:8px;background:#0b1220ee;border-top:1px solid #1e2a3d}
+button{background:#111827;color:#9ca3af;border:1px solid #1f2a3c;padding:6px 10px;border-radius:8px;letter-spacing:.12em;text-transform:uppercase;font-size:10px;cursor:pointer}
+button.on{border-color:#34d399;color:#6ee7b7}
+button.go{border-color:#a78bfa;color:#c4b5fd}
+button.god{border-color:#fbbf24;color:#fde68a}
+.stats{position:fixed;left:10px;bottom:52px;z-index:3;color:#8b95a8;font-size:11px}
+.stats b{color:#e5e7eb}
+hint{position:fixed;right:10px;bottom:52px;z-index:3;color:#5b6574;font-size:10px;text-align:right}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="ui">
+<header>
+  <h1>YIELD<small>cluster harvest · hex-map-wfc</small></h1>
+  <div class="sliders">
+    <label>radius <input id="r" type="range" min="2" max="8" value="4"/> <span id="rv">4</span></label>
+    <label>hex <input id="hex" type="range" min="10" max="36" value="18"/> <span id="hv">18</span></label>
+    <label>view <input id="viewz" type="range" min="40" max="180" value="100"/> <span id="vv">100%</span></label>
+    <label>tilt <input id="tilt" type="range" min="0" max="70" value="48"/> <span id="tv">48°</span></label>
+  </div>
+</header>
+<div id="view"><div id="board"></div></div>
+<div class="dock">
+  <button data-tool="camp" class="on">camp $4</button>
+  <button data-tool="mill">mill $7</button>
+  <button data-tool="sell">sell</button>
+  <button id="tick" class="go">harvest</button>
+  <button id="god">god</button>
+  <button id="resetcam">reset cam</button>
+  <button id="new">new</button>
+</div>
+</div>
+<div class="stats">stock <b id="g">12</b> · ore <b id="ore">0</b> · wood <b id="wood">0</b> · grain <b id="grain">0</b> · water <b id="water">0</b> · <span id="s">place camps on clusters</span></div>
+<hint>same-type neighbors boost yield · drag orbit · G god</hint>
+<script src="./resource-app.js"></script>
+</body>
+</html>
