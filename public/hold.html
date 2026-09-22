@@ -3,127 +3,69 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>HOLD — hex TD</title>
+<title>HOLD — HEXAPHEXAH board</title>
 <style>
-body{margin:0;background:#0b0e12;color:#e8e4d8;font:14px/1.4 system-ui,sans-serif;display:grid;grid-template-rows:auto 1fr auto;height:100vh}
-header,footer{padding:12px 16px;border-bottom:1px solid #2a313c;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-footer{border:0;border-top:1px solid #2a313c;color:#8a8678;font-size:12px}
-h1{margin:0;font-size:15px;letter-spacing:.14em}h1 span{color:#8a8678;font-weight:400}
-.bar{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
-button{background:#151b23;color:#e8e4d8;border:1px solid #2a313c;padding:6px 11px;border-radius:999px;cursor:pointer}
-button.on{border-color:#c6f36a;color:#c6f36a}button.go{color:#d4b45a}
-main{display:grid;grid-template-columns:1fr 240px;min-height:0}
-#stage{display:grid;place-items:center}svg{max-width:100%}
-aside{padding:14px;border-left:1px solid #2a313c;color:#8a8678}
-.stat{display:flex;justify-content:space-between;border-top:1px solid #2a313c;padding:7px 0}
-.ok{color:#c6f36a}.bad{color:#ff6b6b}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#050a14;color:#cdd6e4;font:13px/1.4 system-ui,sans-serif;overflow:hidden}
+#bg{position:fixed;inset:0;z-index:0}
+.ui{position:relative;z-index:2;display:grid;grid-template-rows:auto 1fr auto;height:100%}
+header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:linear-gradient(#0b1220cc,#0b122000)}
+h1{font-weight:500;letter-spacing:.42em;font-size:13px}
+h1 small{display:block;letter-spacing:.28em;color:#7a8496;font-size:9px;margin-top:3px}
+.sliders{display:flex;gap:18px;flex-wrap:wrap;margin-left:auto;align-items:center}
+label{display:flex;align-items:center;gap:8px;color:#8b95a8;font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+input[type=range]{width:110px;accent-color:#60a5fa}
+#stage{display:grid;place-items:center;min-height:0}
+.dock{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:10px;background:#0b1220ee;border-top:1px solid #1e2a3d}
+button{background:#111827;color:#9ca3af;border:1px solid #1f2a3c;padding:7px 12px;border-radius:8px;letter-spacing:.14em;font-size:11px;text-transform:uppercase;cursor:pointer}
+button.on{border-color:#60a5fa;color:#93c5fd;box-shadow:0 0 16px #60a5fa33}
+button.go{border-color:#a78bfa;color:#c4b5fd}
+.stats{position:fixed;left:12px;bottom:56px;z-index:3;font-size:11px;color:#8b95a8}
+.stats b{color:#e5e7eb}
 </style></head>
 <body>
+<canvas id="bg"></canvas>
+<div class="ui">
 <header>
-<h1>HOLD <span>maze + towers</span></h1>
-<div class="bar">
-<button data-tool="wall" class="on">wall $1</button>
-<button data-tool="tower">tower $3</button>
-<button data-tool="sell">sell</button>
-<button id="wave" class="go">send wave</button>
-<button id="new">new</button>
-</div></header>
-<main><div id="stage"></div>
-<aside>
-<p>S must reach B. Walls bend the path. Towers sting neighboring path hexes. Cannot seal.</p>
-<div class="stat"><span>gold</span><b id="g">12</b></div>
-<div class="stat"><span>lives</span><b id="l">8</b></div>
-<div class="stat"><span>wave</span><b id="w">0</b></div>
-<div class="stat"><span>path</span><b id="p">—</b></div>
-<div class="stat"><span>creeps</span><b id="c">0</b></div>
-<div class="stat"><span>status</span><b id="s">build</b></div>
-</aside></main>
-<footer>cube q,r,s · click places the selected tool · waves walk live BFS</footer>
+  <h1>HEXAPHEXAH<small>tower defense · hold</small></h1>
+  <div class="sliders">
+    <label>radius <input id="r" type="range" min="2" max="10" value="4"/> <span id="rv">4</span></label>
+    <label>scale <input id="z" type="range" min="10" max="36" value="20"/> <span id="zv">20</span></label>
+  </div>
+</header>
+<div id="stage"></div>
+<div class="dock">
+  <button data-tool="wall" class="on">wall $1</button>
+  <button data-tool="tower">tower $3</button>
+  <button data-tool="sell">sell</button>
+  <button id="wave" class="go">send wave</button>
+  <button id="new">new</button>
+</div>
+</div>
+<div class="stats">gold <b id="g">12</b> · lives <b id="l">8</b> · wave <b id="w">0</b> · path <b id="p">—</b> · <span id="s">build</span></div>
 <script>
 const DIRS=[[1,0,-1],[1,-1,0],[0,-1,1],[-1,0,1],[-1,1,0],[0,1,-1]];
-const COST={wall:1,tower:3}, SELL={wall:1,tower:2};
-const G={R:4,tool:"wall",tiles:new Map(),gold:12,lives:8,wave:0,creeps:[],run:false,msg:"build"};
+const COST={wall:1,tower:3},SELL={wall:1,tower:2};
+const G={R:4,scale:20,tool:"wall",tiles:new Map(),gold:12,lives:8,wave:0,creeps:[],run:false,msg:"build"};
 function cells(R){const o=[];for(let q=-R;q<=R;q++){const a=Math.max(-R,-q-R),b=Math.min(R,-q+R);for(let r=a;r<=b;r++)o.push({q,r,s:-q-r});}return o;}
 function key(c){return c.q+","+c.r+","+c.s;}
 function at(q,r,s){return G.tiles.get([q,r,s??-q-r].join(","));}
 function nbs(c){return DIRS.map(d=>at(c.q+d[0],c.r+d[1],c.s+d[2])).filter(Boolean);}
 function pix(c,z){return[z*Math.sqrt(3)*(c.q+c.r/2),z*1.5*c.r];}
-function hexP(x,y,z){const p=[];for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30);p.push((x+z*Math.cos(a)).toFixed(1)+","+(y+z*Math.sin(a)).toFixed(1));}return p.join(" ");}
-function bfs(){
-  const start=at(-G.R,0,G.R), goal=at(G.R,0,-G.R); if(!start||!goal) return null;
-  const Q=[start], seen=new Set([key(start)]), prev=new Map();
-  while(Q.length){const c=Q.shift(); if(c===goal){const path=[c]; while(prev.has(key(path[0]))) path.unshift(prev.get(key(path[0]))); return path;}
-    for(const n of nbs(c)){ if(seen.has(key(n))||n.kind==="wall") continue; seen.add(key(n)); prev.set(key(n),c); Q.push(n);}}
-  return null;
-}
-function boot(){
-  G.gold=12;G.lives=8;G.wave=0;G.creeps=[];G.run=false;G.msg="build"; G.tiles=new Map();
-  for(const c of cells(G.R)) G.tiles.set(key(c),{...c,kind:"empty"});
-  at(-G.R,0,G.R).kind="spawn"; at(G.R,0,-G.R).kind="base"; paint();
-}
-function place(t){
-  if(!t||t.kind==="spawn"||t.kind==="base") return;
-  if(G.tool==="sell"){ if(t.kind==="wall"||t.kind==="tower"){G.gold+=SELL[t.kind]; t.kind="empty";} paint(); return; }
-  if(t.kind!=="empty"||G.gold<(COST[G.tool]||99)) {G.msg=t.kind!=="empty"?"occupied":"no gold"; paint(); return;}
-  const prev=t.kind; t.kind=G.tool;
-  if(G.tool==="wall"&&!bfs()){ t.kind=prev; G.msg="would seal"; paint(); return; }
-  G.gold-=COST[G.tool]; G.msg=""; paint();
-}
-function send(){
-  if(G.lives<=0) return; const path=bfs(); if(!path){G.msg="no path"; paint(); return;}
-  G.wave++; const n=4+G.wave, hp=3+G.wave;
-  for(let i=0;i<n;i++) G.creeps.push({hp,max:hp,u:-i*0.35,alive:true});
-  G.run=true; G.msg="wave "+G.wave; paint();
-}
-function hit(cell){let d=cell.kind==="tower"?1:0; for(const n of nbs(cell)) if(n.kind==="tower") d++; return d;}
-let last=0;
-function frame(ts){
-  requestAnimationFrame(frame); if(!last) last=ts; const dt=Math.min(.05,(ts-last)/1000); last=ts; if(!G.run) return;
-  const path=bfs(); if(!path||path.length<2){G.run=false;G.msg="path lost"; paint(); return;}
-  for(const cr of G.creeps){
-    if(!cr.alive) continue; cr.u+=dt*1.35; if(cr.u<0) continue;
-    const idx=Math.min(path.length-1,Math.floor(cr.u)); const cell=path[idx];
-    if(cr.u-idx<dt*1.6) cr.hp-=hit(cell);
-    if(cr.hp<=0){cr.alive=false; G.gold+=1; continue;}
-    if(idx>=path.length-1){cr.alive=false; G.lives--;}
-  }
-  G.creeps=G.creeps.filter(c=>c.alive);
-  if(G.lives<=0){G.run=false;G.msg="base down";} else if(!G.creeps.length){G.run=false;G.msg="wave clear";}
-  paint(path);
-}
-function paint(path){
-  path=path||bfs()||[]; const z=20;
-  const pts=[...G.tiles.values()].map(t=>pix(t,z));
-  const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]), pad=z*2.2;
-  const minx=Math.min(...xs)-pad,maxx=Math.max(...xs)+pad,miny=Math.min(...ys)-pad,maxy=Math.max(...ys)+pad;
-  const on=new Set(path.map(key)); let svg=`<svg viewBox="${minx} ${miny} ${maxx-minx} ${maxy-miny}">`;
-  for(const t of G.tiles.values()){
-    const [x,y]=pix(t,z); let fill="#1a212b",lab="",sw=1,stroke="#2a313c";
-    if(t.kind==="spawn"){fill="#3aa76a";lab="S";} else if(t.kind==="base"){fill="#e35d3a";lab="B";}
-    else if(t.kind==="wall"){fill="#6a7380";lab="#";} else if(t.kind==="tower"){fill="#d4b45a";lab="T";sw=1.6;}
-    else if(on.has(key(t))) fill="#24301c";
-    svg+=`<polygon data-k="${key(t)}" points="${hexP(x,y,z-1)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    if(lab) svg+=`<text x="${x}" y="${y+4}" text-anchor="middle" font-size="8" font-family="monospace" fill="#0b0e12" font-weight="700" style="pointer-events:none">${lab}</text>`;
-  }
-  for(const cr of G.creeps){
-    if(!cr.alive||cr.u<0||!path.length) continue;
-    const u=Math.max(0,Math.min(path.length-1.001,cr.u)), i=Math.floor(u), f=u-i;
-    const a=path[i], b=path[Math.min(path.length-1,i+1)];
-    const [x1,y1]=pix(a,z),[x2,y2]=pix(b,z);
-    svg+=`<circle cx="${x1+(x2-x1)*f}" cy="${y1+(y2-y1)*f}" r="${4+2*(cr.hp/cr.max)}" fill="#e8e4d8"/>`;
-  }
-  svg+="</svg>"; document.getElementById("stage").innerHTML=svg;
-  document.getElementById("g").textContent=G.gold;
-  document.getElementById("l").textContent=G.lives;
-  document.getElementById("w").textContent=G.wave;
-  document.getElementById("p").textContent=path.length||"∅";
-  document.getElementById("c").textContent=G.creeps.length;
-  const s=document.getElementById("s"); s.textContent=G.msg;
-  s.className=/down|seal|gold|lost/.test(G.msg)?"bad":(G.msg==="wave clear"?"ok":"");
-}
+function hexPts(x,y,z){const p=[];for(let i=0;i<6;i++){const a=Math.PI/3*i+Math.PI/6;p.push([x+z*Math.cos(a),y+z*Math.sin(a)]);}return p;}
+function bfs(){const start=at(-G.R,0,G.R),goal=at(G.R,0,-G.R);if(!start||!goal)return null;const Q=[start],seen=new Set([key(start)]),prev=new Map();while(Q.length){const c=Q.shift();if(c===goal){const path=[c];while(prev.has(key(path[0])))path.unshift(prev.get(key(path[0])));return path;}for(const n of nbs(c)){if(seen.has(key(n))||n.kind==="wall")continue;seen.add(key(n));prev.set(key(n),c);Q.push(n);}}return null;}
+function boot(){G.gold=12;G.lives=8;G.wave=0;G.creeps=[];G.run=false;G.msg="build";G.tiles=new Map();for(const c of cells(G.R))G.tiles.set(key(c),{...c,kind:"empty"});const s=at(-G.R,0,G.R),e=at(G.R,0,-G.R);if(s)s.kind="spawn";if(e)e.kind="base";paint();}
+function place(t){if(!t||t.kind==="spawn"||t.kind==="base")return;if(G.tool==="sell"){if(t.kind==="wall"||t.kind==="tower"){G.gold+=SELL[t.kind];t.kind="empty";}paint();return;}if(t.kind!=="empty"||G.gold<(COST[G.tool]||99)){G.msg="no";paint();return;}const prev=t.kind;t.kind=G.tool;if(G.tool==="wall"&&!bfs()){t.kind=prev;G.msg="seal";paint();return;}G.gold-=COST[G.tool];G.msg="";paint();}
+function send(){if(G.lives<=0)return;const path=bfs();if(!path){G.msg="no path";paint();return;}G.wave++;const n=4+G.wave,hp=3+G.wave;for(let i=0;i<n;i++)G.creeps.push({hp,max:hp,u:-i*0.35,alive:true});G.run=true;G.msg="wave "+G.wave;paint();}
+function hit(cell){let d=cell.kind==="tower"?1:0;for(const n of nbs(cell))if(n.kind==="tower")d++;return d;}
+let last=0;function frame(ts){requestAnimationFrame(frame);if(!last)last=ts;const dt=Math.min(.05,(ts-last)/1000);last=ts;if(!G.run)return;const path=bfs();if(!path||path.length<2){G.run=false;G.msg="lost";paint();return;}for(const cr of G.creeps){if(!cr.alive)continue;cr.u+=dt*1.35;if(cr.u<0)continue;const idx=Math.min(path.length-1,Math.floor(cr.u));if(cr.u-idx<dt*1.6)cr.hp-=hit(path[idx]);if(cr.hp<=0){cr.alive=false;G.gold+=1;continue;}if(idx>=path.length-1){cr.alive=false;G.lives--;}}G.creeps=G.creeps.filter(c=>c.alive);if(G.lives<=0){G.run=false;G.msg="base down";}else if(!G.creeps.length){G.run=false;G.msg="clear";}paint(path);}
+function colorFor(t,on){if(t.kind==="spawn")return["#34d399","#059669","#047857"];if(t.kind==="base")return["#fb7185","#e11d48","#9f1239"];if(t.kind==="wall")return["#64748b","#334155","#1e293b"];if(t.kind==="tower")return["#fbbf24","#d97706","#92400e"];if(on)return["#1e3a2f","#0f291f","#0a1c16"];return["#1a2740","#10182b","#0a101c"];}
+function paint(path){path=path||bfs()||[];const z=G.scale,lift=z*0.28;const pts=[...G.tiles.values()].map(t=>pix(t,z));const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),pad=z*2.6;const minx=Math.min(...xs)-pad,maxx=Math.max(...xs)+pad,miny=Math.min(...ys)-pad,maxy=Math.max(...ys)+pad+lift;const on=new Set(path.map(key));const tiles=[...G.tiles.values()].sort((a,b)=>a.r-b.r||a.q-b.q);let svg=`<svg viewBox="${minx} ${miny} ${maxx-minx} ${maxy-miny}" style="width:min(92vw,900px);height:auto">`;for(const t of tiles){const [x,y]=pix(t,z);const [top,left,right]=colorFor(t,on.has(key(t)));const p=hexPts(x,y,z-1),p2=hexPts(x,y+lift,z-1);svg+=`<polygon points="${p[4][0]},${p[4][1]} ${p[5][0]},${p[5][1]} ${p2[5][0]},${p2[5][1]} ${p2[4][0]},${p2[4][1]}" fill="${left}"/>`;svg+=`<polygon points="${p[5][0]},${p[5][1]} ${p[0][0]},${p[0][1]} ${p2[0][0]},${p2[0][1]} ${p2[5][0]},${p2[5][1]}" fill="${right}"/>`;svg+=`<polygon data-k="${key(t)}" points="${p2.map(v=>v.join(",")).join(" ")}" fill="${top}" stroke="rgba(96,165,250,.18)" stroke-width="1"/>`;}for(const cr of G.creeps){if(!cr.alive||cr.u<0||!path.length)continue;const u=Math.max(0,Math.min(path.length-1.001,cr.u)),i=Math.floor(u),f=u-i;const a=path[i],b=path[Math.min(path.length-1,i+1)];const [x1,y1]=pix(a,z),[x2,y2]=pix(b,z);svg+=`<circle cx="${x1+(x2-x1)*f}" cy="${y1+(y2-y1)*f+lift}" r="${3.4+2*(cr.hp/cr.max)}" fill="#e0f2fe"/>`;}svg+=`</svg>`;document.getElementById("stage").innerHTML=svg;document.getElementById("g").textContent=G.gold;document.getElementById("l").textContent=G.lives;document.getElementById("w").textContent=G.wave;document.getElementById("p").textContent=path.length||"∅";document.getElementById("s").textContent=G.msg;}
+(function(){const c=document.getElementById("bg"),ctx=c.getContext("2d");function resize(){c.width=innerWidth;c.height=innerHeight;}resize();addEventListener("resize",resize);const hs=26,s3=Math.sqrt(3);function draw(t){t*=0.001;ctx.clearRect(0,0,c.width,c.height);const cols=Math.ceil(c.width/(hs*s3))+2,rows=Math.ceil(c.height/(hs*1.5))+2,cx=c.width/2,cy=c.height/2;for(let row=-1;row<rows;row++){for(let col=-1;col<cols;col++){const off=row%2?hs*s3*0.5:0,x=col*hs*s3+off,y=row*hs*1.5,dist=Math.hypot(x-cx,y-cy),wave=Math.sin(t*0.8-dist*0.008)*0.5+0.5,hue=(t*15+dist*0.15+col*3)%360;ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i+Math.PI/6,hx=x+(hs-2)*Math.cos(a),hy=y+(hs-2)*Math.sin(a);i?ctx.lineTo(hx,hy):ctx.moveTo(hx,hy);}ctx.closePath();ctx.strokeStyle=`hsla(${hue},55%,${14+wave*8}%,${0.12+wave*0.1})`;ctx.stroke();}}requestAnimationFrame(draw);}requestAnimationFrame(draw);})();
 document.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{G.tool=b.dataset.tool;document.querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("on",x===b));});
-document.getElementById("wave").onclick=send;
-document.getElementById("new").onclick=boot;
-document.getElementById("stage").addEventListener("click",e=>{const n=e.target.closest("[data-k]"); if(n) place(G.tiles.get(n.getAttribute("data-k")));});
-boot(); requestAnimationFrame(frame);
+document.getElementById("wave").onclick=send;document.getElementById("new").onclick=boot;
+document.getElementById("r").oninput=e=>{G.R=+e.target.value;document.getElementById("rv").textContent=G.R;boot();};
+document.getElementById("z").oninput=e=>{G.scale=+e.target.value;document.getElementById("zv").textContent=G.scale;paint();};
+document.getElementById("stage").addEventListener("click",e=>{const n=e.target.closest("[data-k]");if(n)place(G.tiles.get(n.getAttribute("data-k")));});
+boot();requestAnimationFrame(frame);
 </script></body></html>
